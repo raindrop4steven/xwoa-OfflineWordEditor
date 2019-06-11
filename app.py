@@ -19,12 +19,26 @@ pool = Pool()
 logging.basicConfig(level=logging.INFO)
 
 future_dict = {}
+file_status_dict = {}
 
 @app.route('/')
 def index():
     return jsonify({
         "status": "running..."
     })
+
+@app.route('/status/<string:att_id>')
+def status(att_id):
+    # Check attachment editing status
+    att_status = file_status_dict.pop(att_id, None)
+    if att_status == 'uploaded':
+        return jsonify({
+            'code': 200
+        })
+    else:
+        return jsonify({
+            'code': 201
+        })
 
 @app.route('/openDoc', methods=['POST'])
 def openDoc():
@@ -101,6 +115,7 @@ def upload_modified_file(p_dict):
     json_data = json.loads(r.content)
     if json_data['Succeed'] is True:
         logging.info('上传成功')
+        file_status_dict[att_id] = 'uploaded'
     else:
         logging.error(f'上传失败: {r.content}')
 
@@ -111,8 +126,8 @@ if __name__ == '__main__':
         # create att folder if not exists
         os.mkdir(DOWNLOAD_ATT_FOLDER)
     # disable logger
-    log = logging.getLogger('werkzeug')
-    log.disabled = True
-    app.logger.disabled = True
+    # log = logging.getLogger('werkzeug')
+    # log.disabled = True
+    # app.logger.disabled = True
     app.after_request(after_request)
-    app.run(debug=False)
+    app.run(debug=True)
