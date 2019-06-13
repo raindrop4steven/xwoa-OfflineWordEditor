@@ -83,7 +83,8 @@ def openDoc():
         'session': session,
         'origin': origin,
         'row': row,
-        'col': col
+        'col': col,
+        'moddate': os.stat(file_path)
     }
     # pool.shutdown(wait=True)
 
@@ -133,18 +134,20 @@ def upload_modified_file(p_dict):
     origin = p_dict['origin']
     row = p_dict['row']
     col = p_dict['col']
-    
-    files = {'file': open(file_path, 'rb')}
-    
-    r = requests.post(f'{origin}/Apps/DEP/Common/Upload?__session__={session}', data={'AttID': att_id, 'row': row, 'col': col}, files=files)
-    json_data = json.loads(r.content)
-    if json_data['Succeed'] is True:
-        logging.info('上传成功')
-        file_status_dict[att_id] = {'status': 'uploaded', 'message': ''}
-    else:
-        err_msg = f'上传失败: {json_data["Message"]}'
-        logging.error(err_msg)
-        file_status_dict[att_id] = {'status': 'error', 'message': err_msg}
+    moddate = p_dict['moddate']
+    # check if file modified
+    if moddate != os.stat(file_path):
+        files = {'file': open(file_path, 'rb')}
+        
+        r = requests.post(f'{origin}/Apps/DEP/Common/Upload?__session__={session}', data={'AttID': att_id, 'row': row, 'col': col}, files=files)
+        json_data = json.loads(r.content)
+        if json_data['Succeed'] is True:
+            logging.info('上传成功')
+            file_status_dict[att_id] = {'status': 'uploaded', 'message': ''}
+        else:
+            err_msg = f'上传失败: {json_data["Message"]}'
+            logging.error(err_msg)
+            file_status_dict[att_id] = {'status': 'error', 'message': err_msg}
 
 
 if __name__ == '__main__':
