@@ -31,13 +31,25 @@ def index():
 def status(att_id):
     # Check attachment editing status
     att_status = file_status_dict.pop(att_id, None)
-    if att_status == 'uploaded':
+    if att_status is None:
         return jsonify({
-            'code': 200
+            'code': 201,
+            'message': '处理中'
+        })
+    elif att_status.get('status') == 'uploaded':
+        return jsonify({
+            'code': 200,
+            'message': '上传成功'
+        })
+    elif att_status.get('status') == 'error':
+        return jsonify({
+            'code': 400,
+            'message': att_status.get('message', '')
         })
     else:
         return jsonify({
-            'code': 201
+            'code': 202,
+            'message': '处理中'
         })
 
 @app.route('/openDoc', methods=['POST'])
@@ -50,6 +62,16 @@ def openDoc():
     row = request.form.get('row')
     col = request.form.get('col')
 
+    # check if file already opened.
+    for future_item in future_dict.values():
+        if future_item['att_id'] == att_id:
+            # already opened files.
+            return jsonify({
+                'code': 400,
+                'message': '文档已被打开'
+            })
+        else:
+            continue
     # download file
     file_path = download_file(origin, session, att_id, extension)
 
@@ -67,7 +89,7 @@ def openDoc():
 
     return jsonify({
         'code': 200
-    })
+    }) 
 
 def after_request(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
@@ -96,9 +118,12 @@ def callback(future):
         logging.error('got exception: %s' % future.exception())
         pass
     else:
-        process_dict = future_dict.get(future)
-        logging.debug('process returned %d' % future.result())
-        upload_modified_file(process_dict)
+        process_dict = future_dict.pop(future, None)
+        if process_dict is None:
+            logging.error('process dict not found future')
+        else:
+            logging.debug('process returned %d' % future.result())
+            upload_modified_file(process_dict)
 
 def upload_modified_file(p_dict):
     # save cookie into local disk file.
@@ -115,9 +140,11 @@ def upload_modified_file(p_dict):
     json_data = json.loads(r.content)
     if json_data['Succeed'] is True:
         logging.info('上传成功')
-        file_status_dict[att_id] = 'uploaded'
+        file_status_dict[att_id] = {'status': 'uploaded', 'message': ''}
     else:
-        logging.error(f'上传失败: {r.content}')
+        err_msg = f'上传失败: {json_data["Message"]}'
+        logging.error(err_msg)
+        file_status_dict[att_id] = {'status': 'error', 'message': err_msg}
 
 
 if __name__ == '__main__':
