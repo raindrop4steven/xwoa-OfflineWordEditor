@@ -46,6 +46,11 @@ def status(att_id):
             'code': 400,
             'message': att_status.get('message', '')
         })
+    elif att_status.get('status') == 'unmodified':
+        return jsonify({
+            'code': 203,
+            'message': '公文未修改，无需上传'
+        })
     else:
         return jsonify({
             'code': 202,
@@ -148,6 +153,8 @@ def upload_modified_file(p_dict):
             err_msg = f'上传失败: {json_data["Message"]}'
             logging.error(err_msg)
             file_status_dict[att_id] = {'status': 'error', 'message': err_msg}
+    else:
+        file_status_dict[att_id] = {'status': 'unmodified', 'message': '公文未修改，无需上传'}
 
 
 if __name__ == '__main__':
